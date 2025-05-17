@@ -1,5 +1,10 @@
 name: Build FFmpeg Audio Libraries
 
+# Grant the runner permission to fetch marketplace actions
+permissions:
+  contents: read      # already there by default
+  actions: read       # <— this line lets it download actions/upload-artifact
+
 on:
   push:
     branches: [ main ]
@@ -8,11 +13,6 @@ on:
 jobs:
   build-audio-libs:
     runs-on: ubuntu-latest
-    env:
-      API: 24
-      ANDROID_NDK_URL: https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-      # location inside workspace where NDK will be extracted
-      ANDROID_NDK_ROOT: ${{ github.workspace }}/android-ndk/android-ndk-r25c
 
     steps:
       - name: Checkout code
@@ -20,15 +20,14 @@ jobs:
 
       - name: Download Android NDK
         run: |
-          curl -sSL "$ANDROID_NDK_URL" -o ndk.zip
+          curl -sSL https://dl.google.com/android/repository/android-ndk-r25c-linux.zip -o ndk.zip
           unzip -q ndk.zip -d android-ndk
 
       - name: Make build script executable
         run: chmod +x build-audio-convertor-ffmpeg.sh
 
       - name: Run audio build script
-        run: |
-          ./build-audio-convertor-ffmpeg.sh
+        run: ./build-audio-convertor-ffmpeg.sh
 
       - name: Upload .so artifacts
         uses: actions/upload-artifact@v2
