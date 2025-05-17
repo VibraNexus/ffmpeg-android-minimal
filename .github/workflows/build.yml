@@ -31,7 +31,7 @@ jobs:
           ./build-audio-convertor-ffmpeg.sh
 
       - name: Upload .so artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: ffmpeg-audio-libs
           path: output/**/*.so
