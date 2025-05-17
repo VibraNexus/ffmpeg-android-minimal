@@ -35,6 +35,7 @@ for ABI in "${ABIS[@]}"; do
   echo "======================================"
 
   BUILD_DIR="$(pwd)/android-build/$ABI"
+  rm -rf "$BUILD_DIR"
   mkdir -p "$BUILD_DIR"
   pushd "$FFMPEG_SRC_DIR"
 
@@ -50,7 +51,10 @@ for ABI in "${ABIS[@]}"; do
       ARCH=arm
       CPU=armv7-a
       ;;
-    # add more ABIs here…
+    *)
+      echo "Unsupported ABI: $ABI"
+      exit 1
+      ;;
   esac
 
   # 3b) Point every tool at the NDK’s LLVM toolchain
@@ -64,7 +68,7 @@ for ABI in "${ABIS[@]}"; do
   export STRIP="$TOOLCHAIN/bin/llvm-strip"
   export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
 
-  # 4) Configure FFmpeg
+  # 4) Configure FFmpeg for shared libs only
   ./configure \
     --prefix="$BUILD_DIR" \
     --target-os=android \
@@ -81,6 +85,8 @@ for ABI in "${ABIS[@]}"; do
     --ranlib="$RANLIB" \
     --disable-everything \
     --enable-small \
+    --enable-shared \
+    --disable-static \
     --extra-cflags="-fPIC" \
     --extra-ldflags="-fuse-ld=lld -Wl,--gc-sections -Wl,-z,max-page-size=16384" \
     --enable-protocol=file \
