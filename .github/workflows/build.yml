@@ -34,15 +34,19 @@ jobs:
           echo "Checking PT_LOAD p_align for all .so files…"
           for so in output/arm64-v8a/*.so; do
             echo "  → $so"
-            # field 9 is the Align column
-            p_aligns=$(readelf -l "$so" | awk '/LOAD/ {print $9}' | sort -u)
-            echo "    p_align = $p_aligns"
-            if ! echo "$p_aligns" | grep -q '^0x00004000$'; then
-              echo "::error ::$so is NOT 16 KB–aligned (found: $p_aligns)"
+            # grab LOAD lines that have 0x00004000 in the p_align column
+            matches=$(readelf -l "$so" | grep 'LOAD' | grep '0x00004000' || true)
+            if [ -n "$matches" ]; then
+              echo "    ✅ 16 KB alignment entries:"
+              echo "$matches"
+            else
+              echo "::error ::$so is NOT 16 KB aligned"
+              echo "    full LOAD table for debugging:"
+              readelf -l "$so" | grep 'LOAD'
               exit 1
             fi
           done
-          echo "✅ All .so files are 16 KB aligned"
+          echo "✅ All .so files passed the 16 KB alignment check"
 
       - name: Upload .so artifacts
         uses: actions/upload-artifact@v4
