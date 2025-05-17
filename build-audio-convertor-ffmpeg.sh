@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -xe
 
 # ==============================================================================
 # build-audio-convertor-ffmpeg.sh
