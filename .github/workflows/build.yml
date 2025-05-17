@@ -40,9 +40,9 @@ jobs:
             echo "  Full PT_LOAD table:"
             readelf -l "$so" | grep 'LOAD' | sed 's/^/    /'
       
-            # Pair each LOAD header with its following line, then test column 4 == 0x4000
+            # Pair each LOAD header with its following line, then test final field == 0x4000
             misaligned=$(readelf -l "$so" \
-              | awk '/^ *LOAD/ { hdr=$0; getline; if ($4!="0x4000") print hdr "\n" $0 }')
+              | awk '/^ *LOAD/ { hdr=$0; getline; if ($NF!="0x4000") print hdr "\n" $0 }')
       
             if [ -z "$misaligned" ]; then
               echo "  ✅ All PT_LOAD segments are 16 KB aligned"
