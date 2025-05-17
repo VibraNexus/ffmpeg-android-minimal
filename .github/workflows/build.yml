@@ -31,7 +31,7 @@ jobs:
 
       - name: Verify 16 KB page alignment
         run: |
-          echo "Checking PT_LOAD segments (and alignments) for all .so files…"
+          echo "Checking PT_LOAD segments for 16 KB alignment…"
           failed=false
       
           for so in output/arm64-v8a/*.so; do
@@ -40,22 +40,20 @@ jobs:
             echo "  Full PT_LOAD table:"
             readelf -l "$so" | grep 'LOAD' | sed 's/^/    /'
       
-            # Now check the alignment field on the *second* line of each LOAD pair
-            # (we use awk to pair header+segment and test column 4)
+            # Pair each LOAD header with its following line, then test column 4 == 0x4000
             misaligned=$(readelf -l "$so" \
-              | awk '/^ *LOAD/ { hdr=$0; getline; if ($4!="0x00004000") print hdr "\n" $0 }')
+              | awk '/^ *LOAD/ { hdr=$0; getline; if ($4!="0x4000") print hdr "\n" $0 }')
       
             if [ -z "$misaligned" ]; then
               echo "  ✅ All PT_LOAD segments are 16 KB aligned"
             else
-              echo "  ⚠️  Found misaligned PT_LOAD segments in $so:"
+              echo "  ⚠️  Found misaligned segments:"
               echo "$misaligned" | sed 's/^/    /'
               failed=true
             fi
           done
       
           if [ "$failed" = true ]; then
-            echo
             echo "::error ::One or more .so files are NOT 16 KB page-aligned"
             exit 1
           fi
