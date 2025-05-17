@@ -39,11 +39,14 @@ for ABI in "${ABIS[@]}"; do
   pushd "$FFMPEG_SRC_DIR"
 
   # Configure Android NDK toolchain paths
-  TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/$(uname -m)-linux-gnu"
+  # NOTE: NDK r25+ uses "linux-x86_64" as the prebuilt host folder
+  TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+  SYSROOT="$TOOLCHAIN/sysroot"
+
   case "$ABI" in
     arm64-v8a)
       TARGET_HOST=aarch64-linux-android
-      ARCH=arm64
+      ARCH=aarch64
       CPU=armv8-a
       ;;
     armeabi-v7a)
@@ -54,7 +57,15 @@ for ABI in "${ABIS[@]}"; do
     # add more ABIs here...
   esac
 
+  # Point every tool at the NDK's LLVM toolchain
   export CC="$TOOLCHAIN/bin/${TARGET_HOST}${API}-clang"
+  export CXX="$TOOLCHAIN/bin/${TARGET_HOST}${API}-clang++"
+  export AR="$TOOLCHAIN/bin/llvm-ar"
+  export LD="$TOOLCHAIN/bin/ld.lld"
+  export NM="$TOOLCHAIN/bin/llvm-nm"
+  export STRIP="$TOOLCHAIN/bin/llvm-strip"
+  export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
+
   CROSS_PREFIX="$TOOLCHAIN/bin/${TARGET_HOST}-"
 
   # 4. Configure FFmpeg
@@ -63,16 +74,23 @@ for ABI in "${ABIS[@]}"; do
     --target-os=android \
     --arch="$ARCH" \
     --cpu="$CPU" \
-    --cross-prefix="$CROSS_PREFIX" \
-    --cc="$CC" \
-    --disable-everything \
     --enable-cross-compile \
+    --cross-prefix="$CROSS_PREFIX" \
+    --sysroot="$SYSROOT" \
+    --cc="$CC" \
+    --cxx="$CXX" \
+    --ar="$AR" \
+    --nm="$NM" \
+    --ld="$LD" \
+    --strip="$STRIP" \
+    --ranlib="$RANLIB" \
+    --disable-everything \
     --enable-small \
+    --enable-protocol=file \
     --enable-decoder=opus,vorbis,aac \
     --enable-encoder=mp3,flac,aac \
     --enable-demuxer=webm,matroska,ogg \
     --enable-muxer=mp3,flac,ipod \
-    --enable-protocol=file \
     --extra-ldflags="-Wl,-z,max-page-size=16384"
 
   # 5. Build & install
@@ -91,4 +109,3 @@ for ABI in "${ABIS[@]}"; do
 done
 
 echo "✅ Build complete — find your .so files under output/"
-
