@@ -31,21 +31,36 @@ jobs:
 
       - name: Verify 16 KB page alignment
         run: |
-          echo "Checking PT_LOAD p_align for all .so files…"
+          echo "Checking PT_LOAD segments (and alignments) for all .so files…"
+          failed=false
+      
           for so in output/arm64-v8a/*.so; do
-            echo "  → $so"
-            # grab LOAD lines that have 0x00004000 in the p_align column
-            matches=$(readelf -l "$so" | grep 'LOAD' | grep '0x00004000' || true)
-            if [ -n "$matches" ]; then
-              echo "    ✅ 16 KB alignment entries:"
-              echo "$matches"
+            echo
+            echo "→ $so"
+            echo "  Full PT_LOAD table:"
+            readelf -l "$so" | grep 'LOAD' | sed 's/^/    /'
+      
+            # Now check the alignment field on the *second* line of each LOAD pair
+            # (we use awk to pair header+segment and test column 4)
+            misaligned=$(readelf -l "$so" \
+              | awk '/^ *LOAD/ { hdr=$0; getline; if ($4!="0x00004000") print hdr "\n" $0 }')
+      
+            if [ -z "$misaligned" ]; then
+              echo "  ✅ All PT_LOAD segments are 16 KB aligned"
             else
-              echo "::error ::$so is NOT 16 KB aligned"
-              echo "    full LOAD table for debugging:"
-              readelf -l "$so" | grep 'LOAD'
-              exit 1
+              echo "  ⚠️  Found misaligned PT_LOAD segments in $so:"
+              echo "$misaligned" | sed 's/^/    /'
+              failed=true
             fi
           done
+      
+          if [ "$failed" = true ]; then
+            echo
+            echo "::error ::One or more .so files are NOT 16 KB page-aligned"
+            exit 1
+          fi
+      
+          echo
           echo "✅ All .so files passed the 16 KB alignment check"
 
       - name: Upload .so artifacts
