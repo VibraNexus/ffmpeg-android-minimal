@@ -38,11 +38,7 @@ for ABI in "${ABIS[@]}"; do
   mkdir -p "$BUILD_DIR"
   pushd "$FFMPEG_SRC_DIR"
 
-  # Configure Android NDK toolchain paths
-  # NOTE: NDK r25+ uses "linux-x86_64" as the prebuilt host folder
-  TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
-  SYSROOT="$TOOLCHAIN/sysroot"
-
+  # 3a) Determine target triple, arch, cpu
   case "$ABI" in
     arm64-v8a)
       TARGET_HOST=aarch64-linux-android
@@ -54,46 +50,46 @@ for ABI in "${ABIS[@]}"; do
       ARCH=arm
       CPU=armv7-a
       ;;
-    # add more ABIs here...
+    # add more ABIs here…
   esac
 
-  # Point every tool at the NDK's LLVM toolchain
+  # 3b) Point every tool at the NDK’s LLVM toolchain
+  TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64"
+  SYSROOT="$TOOLCHAIN/sysroot"
+
   export CC="$TOOLCHAIN/bin/${TARGET_HOST}${API}-clang"
   export CXX="$TOOLCHAIN/bin/${TARGET_HOST}${API}-clang++"
   export AR="$TOOLCHAIN/bin/llvm-ar"
-  export LD="$TOOLCHAIN/bin/ld.lld"
   export NM="$TOOLCHAIN/bin/llvm-nm"
   export STRIP="$TOOLCHAIN/bin/llvm-strip"
   export RANLIB="$TOOLCHAIN/bin/llvm-ranlib"
 
-  CROSS_PREFIX="$TOOLCHAIN/bin/${TARGET_HOST}-"
-
-  # 4. Configure FFmpeg
+  # 4) Configure FFmpeg
   ./configure \
     --prefix="$BUILD_DIR" \
     --target-os=android \
     --arch="$ARCH" \
     --cpu="$CPU" \
     --enable-cross-compile \
-    --cross-prefix="$CROSS_PREFIX" \
+    --cross-prefix="$TOOLCHAIN/bin/${TARGET_HOST}-" \
     --sysroot="$SYSROOT" \
     --cc="$CC" \
     --cxx="$CXX" \
     --ar="$AR" \
     --nm="$NM" \
-    --ld="$LD" \
     --strip="$STRIP" \
     --ranlib="$RANLIB" \
     --disable-everything \
     --enable-small \
+    --extra-cflags="-fPIC" \
+    --extra-ldflags="-fuse-ld=lld -Wl,--gc-sections -Wl,-z,max-page-size=16384" \
     --enable-protocol=file \
     --enable-decoder=opus,vorbis,aac \
     --enable-encoder=mp3,flac,aac \
     --enable-demuxer=webm,matroska,ogg \
-    --enable-muxer=mp3,flac,ipod \
-    --extra-ldflags="-Wl,-z,max-page-size=16384"
+    --enable-muxer=mp3,flac,ipod
 
-  # 5. Build & install
+  # 5) Build & install
   make -j"$(nproc)"
   make install
 
