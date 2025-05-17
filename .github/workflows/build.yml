@@ -29,6 +29,22 @@ jobs:
       - name: Run audio build script
         run: ./build-audio-convertor-ffmpeg.sh
 
+      - name: Verify 16 KB page alignment
+        run: |
+          echo "Checking PT_LOAD p_align for all .so files…"
+          for so in output/arm64-v8a/*.so; do
+            echo "  → $so"
+            # extract the unique p_align value(s)
+            p_aligns=$(readelf -l "$so" | grep ' LOAD ' | awk '{print $6}' | sort -u)
+            echo "    p_align = $p_aligns"
+            # ensure 0x00004000 (16 384) is set
+            if ! echo "$p_aligns" | grep -q '^0x00004000$'; then
+              echo "::error ::$so is NOT 16 KB–aligned"
+              exit 1
+            fi
+          done
+          echo "✅ All .so files are 16 KB aligned"
+
       - name: Upload .so artifacts
         uses: actions/upload-artifact@v4
         with:
